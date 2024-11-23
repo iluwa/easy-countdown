@@ -7,46 +7,70 @@
 
 import SwiftUI
 import CoreData
+import Foundation
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
-
+    
     @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
+        sortDescriptors: [NSSortDescriptor(keyPath: \Item.date, ascending: true)],
         animation: .default)
     private var items: FetchedResults<Item>
-
+    
     var body: some View {
         NavigationView {
             List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp!, formatter: itemFormatter)")
-                    } label: {
-                        Text(item.timestamp!, formatter: itemFormatter)
+                Section(header: Text("Your Events").font(.title)
+                    .foregroundColor(.primary).bold().padding(.bottom, 10)) {
+                        ForEach(items) { item in
+                            NavigationLink {
+                                Text("Item at \(item.date!, formatter: itemFormatter)")
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .center) {
+                                        Text("\(item.date!.days(from: Date()))")
+                                            .font(.title)
+                                            .foregroundColor(.primary)
+                                        Text("days")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                    .frame(minWidth: 40)
+                                    .padding(.trailing, 10)
+                                    VStack(alignment: .leading) {
+                                        Text(item.name!)
+                                            .font(.body)
+                                            .foregroundColor(.primary)
+                                        Text("\(item.date!, formatter: itemFormatter)")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                            }
+                        }
+                        .onDelete(perform: deleteItems)
                     }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
+                
+                Section{
+                    Button(action: {
+                        addItem()
+                    }) {
+                        Label("Add event", systemImage: "plus.circle.fill")
+                            .frame(maxWidth: .infinity)
+                            .foregroundColor(.primary)
                     }
-                }
+                }.listRowBackground(Color.blue)
+                
             }
-            Text("Select an item")
         }
     }
-
+    
     private func addItem() {
         withAnimation {
             let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
-
+            newItem.date = Date()
+            newItem.name = ""
+            
             do {
                 try viewContext.save()
             } catch {
@@ -57,11 +81,10 @@ struct ContentView: View {
             }
         }
     }
-
+    
     private func deleteItems(offsets: IndexSet) {
         withAnimation {
             offsets.map { items[$0] }.forEach(viewContext.delete)
-
             do {
                 try viewContext.save()
             } catch {
@@ -74,13 +97,22 @@ struct ContentView: View {
     }
 }
 
+extension Date {
+    func days(from date: Date) -> Int {
+        return Calendar.current.dateComponents([.day], from: date, to: self).day ?? 0
+    }
+}
+
+
 private let itemFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.dateStyle = .short
-    formatter.timeStyle = .medium
+    formatter.timeStyle = .none
     return formatter
 }()
 
 #Preview {
-    ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    ContentView()
+        .preferredColorScheme(.dark)
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }
